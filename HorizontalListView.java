@@ -23,7 +23,7 @@
  *
  */
 
-package open.protto.abba.view.list;
+package open.protto.pecs.view.list;
 
 import java.util.LinkedList;
 import java.util.Queue;
