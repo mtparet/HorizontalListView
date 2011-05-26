@@ -1,6 +1,4 @@
 /*
- * HorizontalListView.java v1.5
- *
  * 
  * The MIT License
  * Copyright (c) 2011 Paul Soucy (paul@dev-smart.com)
