@@ -35,7 +35,6 @@ import android.database.DataSetObserver;
 import android.graphics.Rect;
 import android.graphics.drawable.Drawable;
 import android.util.AttributeSet;
-import android.util.Log;
 import android.view.GestureDetector;
 import android.view.GestureDetector.OnGestureListener;
 import android.view.MotionEvent;
@@ -47,7 +46,7 @@ import android.widget.Scroller;
 
 public class HorizontalListView extends AdapterView<ListAdapter> {
 
-	/*@Override
+	@Override
 	public int getSelectedItemPosition() {
 		if(selection>=0){
 			return selection;
@@ -55,12 +54,11 @@ public class HorizontalListView extends AdapterView<ListAdapter> {
 			return AdapterView.INVALID_POSITION;
 		}
 		
-	}*/
+	}
 
 	@Override
 	public boolean isSelected() {
 		return selection >= 0;
-		// return super.isSelected();
 	}
 
 	public boolean mAlwaysOverrideTouch = true;
@@ -138,12 +136,12 @@ public class HorizontalListView extends AdapterView<ListAdapter> {
 		return mAdapter;
 	}
 
-	@Override
+/*	@Override
 	public View getSelectedView() {
 		View child = mAdapter.getView(this.selection,
 				null, this);
 		return child;
-	}
+	}*/
 
 	@Override
 	public void setAdapter(ListAdapter adapter) {
@@ -234,15 +232,12 @@ public class HorizontalListView extends AdapterView<ListAdapter> {
 	}
 
 	private void fillList(final int dx) {
-		// dx 滚动偏移量
-		// x 偏移
+	
 		int edge = 0;
 		View child = getChildAt(getChildCount() - 1);
 		if (child != null) {
 			edge = child.getRight();
-			// viewStateRetrive(child,child.isSelected());
 			child.setSelected(false);
-			// Log.d("rightedge", String.valueOf(edge));
 		}
 		fillListRight(edge, dx);
 		edge = 0;
@@ -463,7 +458,6 @@ public class HorizontalListView extends AdapterView<ListAdapter> {
 					}
 					// break;
 				} else {
-					// 未点击的
 					child.setPressed(false);
 					child.setSelected(false);
 					viewStateRetrive(child, false);
@@ -472,7 +466,6 @@ public class HorizontalListView extends AdapterView<ListAdapter> {
 				}// end else
 
 			}
-			Log.d("selected", String.valueOf(HorizontalListView.this.isSelected()));
 			return super.onSingleTapConfirmed(e);
 
 		}
