@@ -27,25 +27,40 @@
 package open.protto.pecs.view.list;
 
 import java.util.LinkedList;
+import java.util.List;
 import java.util.Queue;
-
+import android.annotation.SuppressLint;
 import android.content.Context;
 import android.database.DataSetObserver;
 import android.graphics.Rect;
+import android.graphics.drawable.Drawable;
 import android.util.AttributeSet;
-import android.util.Log;
 import android.view.GestureDetector;
 import android.view.GestureDetector.OnGestureListener;
 import android.view.MotionEvent;
 import android.view.View;
-import android.view.View.OnTouchListener;
+import android.view.ViewParent;
 import android.widget.AdapterView;
 import android.widget.ListAdapter;
 import android.widget.Scroller;
 
-public class HorizontalListView extends AdapterView<ListAdapter>{
+public class HorizontalListView extends AdapterView<ListAdapter> {
 
-	private boolean onMove = false;
+	@Override
+	public int getSelectedItemPosition() {
+		if(selection>=0){
+			return selection;
+		}else{
+			return AdapterView.INVALID_POSITION;
+		}
+		
+	}
+
+	@Override
+	public boolean isSelected() {
+		return selection >= 0;
+	}
+
 	public boolean mAlwaysOverrideTouch = true;
 	protected ListAdapter mAdapter;
 	private int mLeftViewIndex = -1;
@@ -54,20 +69,14 @@ public class HorizontalListView extends AdapterView<ListAdapter>{
 	protected int mNextX;
 	private int mMaxX = Integer.MAX_VALUE;
 	private int mDisplayOffset = 0;
+	private int selection = -1;
 	protected Scroller mScroller;
 	private GestureDetector mGesture;
 	private Queue<View> mRemovedViewQueue = new LinkedList<View>();
 	private OnItemSelectedListener mOnItemSelected;
 	private OnItemClickListener mOnItemClicked;
-	private OnTouchListener mOnItemOutListener;
-	private OnItemLongClickListener mOnItemLongClickListener;
-	private OnTouchListener mOnItemMoveListener; //It is an hacked touchLister, in fact it is OnMoveListener
-	private boolean isMove = false;
+	private OnItemLongClickListener mOnItemLongClicked;
 	private boolean mDataChanged = false;
-	private boolean getEvent = false;
-	private boolean receive = false;
-
-
 
 	public HorizontalListView(Context context, AttributeSet attrs) {
 		super(context, attrs);
@@ -86,33 +95,27 @@ public class HorizontalListView extends AdapterView<ListAdapter>{
 	}
 
 	@Override
-	public void setOnItemSelectedListener(AdapterView.OnItemSelectedListener listener) {
+	public void setOnItemSelectedListener(
+			AdapterView.OnItemSelectedListener listener) {
 		mOnItemSelected = listener;
 	}
 
 	@Override
-	public void setOnItemClickListener(AdapterView.OnItemClickListener listener){
+	public void setOnItemClickListener(AdapterView.OnItemClickListener listener) {
 		mOnItemClicked = listener;
 	}
 
 	@Override
-	public void setOnItemLongClickListener(AdapterView.OnItemLongClickListener listener){
-		mOnItemLongClickListener = listener;
+	public void setOnItemLongClickListener(
+			AdapterView.OnItemLongClickListener listener) {
+		mOnItemLongClicked = listener;
 	}
 
-	public void setOnItemMoveListener(AdapterView.OnTouchListener listener){
-		mOnItemMoveListener = listener;
-	}
-
-	public void setOnItemOutListener(AdapterView.OnTouchListener listener){
-		this.mOnItemOutListener = listener;
-	}
-	
 	private DataSetObserver mDataObserver = new DataSetObserver() {
 
 		@Override
 		public void onChanged() {
-			synchronized(HorizontalListView.this){
+			synchronized (HorizontalListView.this) {
 				mDataChanged = true;
 			}
 			invalidate();
@@ -128,21 +131,21 @@ public class HorizontalListView extends AdapterView<ListAdapter>{
 
 	};
 
-
 	@Override
 	public ListAdapter getAdapter() {
 		return mAdapter;
 	}
 
-	@Override
+/*	@Override
 	public View getSelectedView() {
-		//TODO: implement
-		return null;
-	}
+		View child = mAdapter.getView(this.selection,
+				null, this);
+		return child;
+	}*/
 
 	@Override
 	public void setAdapter(ListAdapter adapter) {
-		if(mAdapter != null) {
+		if (mAdapter != null) {
 			mAdapter.unregisterDataSetObserver(mDataObserver);
 		}
 		mAdapter = adapter;
@@ -150,37 +153,45 @@ public class HorizontalListView extends AdapterView<ListAdapter>{
 		reset();
 	}
 
-	private synchronized void reset(){
+	private synchronized void reset() {
+
 		initView();
 		removeAllViewsInLayout();
 		requestLayout();
+
 	}
 
 	@Override
 	public void setSelection(int position) {
-		//TODO: implement
+
+		this.selection = position;
 	}
 
 	private void addAndMeasureChild(final View child, int viewPos) {
 		LayoutParams params = child.getLayoutParams();
-		if(params == null) {
-			params = new LayoutParams(LayoutParams.FILL_PARENT, LayoutParams.FILL_PARENT);
+		if (params == null) {
+			params = new LayoutParams(LayoutParams.MATCH_PARENT,
+					LayoutParams.MATCH_PARENT);
 		}
 
 		addViewInLayout(child, viewPos, params, true);
-		child.measure(MeasureSpec.makeMeasureSpec(getWidth(), MeasureSpec.AT_MOST),
+
+		child.measure(
+				MeasureSpec.makeMeasureSpec(getWidth(), MeasureSpec.AT_MOST),
 				MeasureSpec.makeMeasureSpec(getHeight(), MeasureSpec.AT_MOST));
 	}
 
+	@SuppressLint("DrawAllocation")
 	@Override
-	protected synchronized void onLayout(boolean changed, int left, int top, int right, int bottom) {
+	protected synchronized void onLayout(boolean changed, int left, int top,
+			int right, int bottom) {
 		super.onLayout(changed, left, top, right, bottom);
 
-		if(mAdapter == null){
+		if (mAdapter == null) {
 			return;
 		}
 
-		if(mDataChanged){
+		if (mDataChanged) {
 			int oldCurrentX = mCurrentX;
 			initView();
 			removeAllViewsInLayout();
@@ -188,30 +199,29 @@ public class HorizontalListView extends AdapterView<ListAdapter>{
 			mDataChanged = false;
 		}
 
-		if(mScroller.computeScrollOffset()){
+		if (mScroller.computeScrollOffset()) {
 			int scrollx = mScroller.getCurrX();
 			mNextX = scrollx;
 		}
 
-		if(mNextX < 0){
+		if (mNextX <= 0) {
 			mNextX = 0;
 			mScroller.forceFinished(true);
 		}
-		if(mNextX > mMaxX) {
+		if (mNextX >= mMaxX) {
 			mNextX = mMaxX;
 			mScroller.forceFinished(true);
 		}
 
 		int dx = mCurrentX - mNextX;
-
 		removeNonVisibleItems(dx);
 		fillList(dx);
 		positionItems(dx);
 
 		mCurrentX = mNextX;
 
-		if(!mScroller.isFinished()){
-			post(new Runnable(){
+		if (!mScroller.isFinished()) {
+			post(new Runnable() {
 				@Override
 				public void run() {
 					requestLayout();
@@ -222,51 +232,97 @@ public class HorizontalListView extends AdapterView<ListAdapter>{
 	}
 
 	private void fillList(final int dx) {
+	
 		int edge = 0;
-		View child = getChildAt(getChildCount()-1);
-		if(child != null) {
+		View child = getChildAt(getChildCount() - 1);
+		if (child != null) {
 			edge = child.getRight();
+			child.setSelected(false);
 		}
 		fillListRight(edge, dx);
-
 		edge = 0;
 		child = getChildAt(0);
-		if(child != null) {
+		if (child != null) {
+			child.setSelected(false);
 			edge = child.getLeft();
 		}
 		fillListLeft(edge, dx);
+		
+		int selectedIndex = -1;
+		if (mLeftViewIndex < 0) {
+			selectedIndex = this.selection;
+		} else {
+			selectedIndex = this.selection - mLeftViewIndex - 1;
 
+		}
+		
+		if (selectedIndex >= 0) {
 
+			View selectedView = getChildAt(selectedIndex);
+			if (selectedView != null) {
+				selectedView.setSelected(true);
+				viewStateRetrive(getChildAt(selectedIndex), true);
+			}
+
+		}
 	}
 
 	private void fillListRight(int rightEdge, final int dx) {
-		while(rightEdge + dx < getWidth() && mRightViewIndex < mAdapter.getCount()) {
-
-			View child = mAdapter.getView(mRightViewIndex, mRemovedViewQueue.poll(), this);
+		while (rightEdge + dx < getWidth()
+				&& mRightViewIndex < mAdapter.getCount()) {
+			View child = mAdapter.getView(mRightViewIndex,
+					mRemovedViewQueue.poll(), this);
 			addAndMeasureChild(child, -1);
 			rightEdge += child.getMeasuredWidth();
 
-			if(mRightViewIndex == mAdapter.getCount()-1){
+			if (mRightViewIndex == mAdapter.getCount() - 1) {
 				mMaxX = mCurrentX + rightEdge - getWidth();
 			}
+
+			if (mMaxX < 0) {
+				mMaxX = 0;
+			}
 			mRightViewIndex++;
+
 		}
 
 	}
 
 	private void fillListLeft(int leftEdge, final int dx) {
-		while(leftEdge + dx > 0 && mLeftViewIndex >= 0) {
-			View child = mAdapter.getView(mLeftViewIndex, mRemovedViewQueue.poll(), this);
+		while (leftEdge + dx > 0 && mLeftViewIndex >= 0) {
+			View child = mAdapter.getView(mLeftViewIndex,
+					mRemovedViewQueue.poll(), this);
 			addAndMeasureChild(child, 0);
 			leftEdge -= child.getMeasuredWidth();
 			mLeftViewIndex--;
 			mDisplayOffset -= child.getMeasuredWidth();
+
 		}
+	}
+
+	private void viewStateRetrive(View child, boolean selected) {
+		if (child == null)
+			return;
+		List<View> focusables = child.getTouchables();
+		if (focusables == null)
+			return;
+		for (View v : focusables) {
+			Drawable drawable = v.getBackground();
+			if (drawable != null && drawable.isStateful()) {
+
+				if (!selected) {
+					drawable.setState(View.EMPTY_STATE_SET);
+				} else {
+					drawable.setState(View.PRESSED_FOCUSED_STATE_SET);
+				}
+			}
+		}
+		child.postInvalidate();
 	}
 
 	private void removeNonVisibleItems(final int dx) {
 		View child = getChildAt(0);
-		while(child != null && child.getRight() + dx <= 0) {
+		while (child != null && child.getRight() + dx <= 0) {
 			mDisplayOffset += child.getMeasuredWidth();
 			mRemovedViewQueue.offer(child);
 			removeViewInLayout(child);
@@ -275,24 +331,25 @@ public class HorizontalListView extends AdapterView<ListAdapter>{
 
 		}
 
-		child = getChildAt(getChildCount()-1);
-		while(child != null && child.getLeft() + dx >= getWidth()) {
+		child = getChildAt(getChildCount() - 1);
+		while (child != null && child.getLeft() + dx >= getWidth()) {
 			mRemovedViewQueue.offer(child);
 			removeViewInLayout(child);
 			mRightViewIndex--;
-			child = getChildAt(getChildCount()-1);
+			child = getChildAt(getChildCount() - 1);
 		}
 	}
 
 	private void positionItems(final int dx) {
-		if(getChildCount() > 0){
+		if (getChildCount() > 0) {
 			mDisplayOffset += dx;
 			int left = mDisplayOffset;
-			for(int i=0;i<getChildCount();i++){
+			for (int i = 0; i < getChildCount(); i++) {
 				View child = getChildAt(i);
 				int childWidth = child.getMeasuredWidth();
-				child.layout(left, 0, left + childWidth, child.getMeasuredHeight());
-				left += childWidth;
+				child.layout(left, 0, left + childWidth,
+						child.getMeasuredHeight());
+				left += childWidth + child.getPaddingRight();
 			}
 		}
 	}
@@ -304,44 +361,15 @@ public class HorizontalListView extends AdapterView<ListAdapter>{
 
 	@Override
 	public boolean dispatchTouchEvent(MotionEvent ev) {
-		boolean handled = false;
-		
-
-		if(onMove)
-			handled = onTestMove(ev);
-		
-		if(getEvent){
-			handled = mOnItemMoveListener.onTouch(getEmptyView(), ev);
-		}else{
-			handled = mGesture.onTouchEvent(ev);
-		}
-
+		boolean handled = super.dispatchTouchEvent(ev);
+		handled |= mGesture.onTouchEvent(ev);
 		return handled;
-	}
-	
-	public void setGetEvent(boolean getEvent){
-		this.getEvent = getEvent;
-	}
-	
-	public void setReceive(boolean receive){
-		this.receive = receive;
-	}
-
-	@Override
-	public boolean onTouchEvent(MotionEvent ev){
-		
-		if(receive)
-		 onTestReceive(ev);
-			
-		return false;
-
 	}
 
 	protected boolean onFling(MotionEvent e1, MotionEvent e2, float velocityX,
 			float velocityY) {
-
-		synchronized(HorizontalListView.this){
-			mScroller.fling(mNextX, 0, (int)-velocityX, 0, 0, mMaxX, 0, 0);
+		synchronized (HorizontalListView.this) {
+			mScroller.fling(mNextX, 0, (int) -velocityX, 0, 0, mMaxX, 0, 0);
 		}
 		requestLayout();
 
@@ -349,7 +377,6 @@ public class HorizontalListView extends AdapterView<ListAdapter>{
 	}
 
 	protected boolean onDown(MotionEvent e) {
-		isMove = false;
 		mScroller.forceFinished(true);
 		return true;
 	}
@@ -364,174 +391,114 @@ public class HorizontalListView extends AdapterView<ListAdapter>{
 		@Override
 		public boolean onFling(MotionEvent e1, MotionEvent e2, float velocityX,
 				float velocityY) {
-
-			return HorizontalListView.this.onFling(e1, e2, velocityX, velocityY);
+			return HorizontalListView.this
+					.onFling(e1, e2, velocityX, velocityY);
 		}
 
 		@Override
 		public boolean onScroll(MotionEvent e1, MotionEvent e2,
 				float distanceX, float distanceY) {
+			ViewParent viewParent = getParent();
 
-			synchronized(HorizontalListView.this){
-				mNextX += (int)distanceX;
+			if (viewParent != null) {
+
+				viewParent.requestDisallowInterceptTouchEvent(true);
+
 			}
-
+			synchronized (HorizontalListView.this) {
+				mNextX += (int) distanceX;
+			}
 			requestLayout();
 
-			return false;
-		}
-
-		@Override
-		public void onLongPress(MotionEvent e){
-			Rect viewRect = new Rect();
-			for(int i=0;i<getChildCount();i++){
-				View child = getChildAt(i);
-				int left = child.getLeft();
-				int right = child.getRight();
-				int top = child.getTop();
-				int bottom = child.getBottom();
-				viewRect.set(left, top, right, bottom);
-				if(viewRect.contains((int)e.getX(), (int)e.getY())){
-
-					if(mOnItemLongClickListener != null){
-						mOnItemLongClickListener.onItemLongClick(HorizontalListView.this, child, mLeftViewIndex + 1 + i, mAdapter.getItemId( mLeftViewIndex + 1 + i ));
-					}
-					if(mOnItemSelected != null){
-						mOnItemSelected.onItemSelected(HorizontalListView.this, child, mLeftViewIndex + 1 + i, mAdapter.getItemId( mLeftViewIndex + 1 + i ));
-					}
-					break;
-				}
-			}
-
+			return true;
 		}
 
 		@Override
 		public boolean onSingleTapConfirmed(MotionEvent e) {
-			Rect viewRect = new Rect();
-			for(int i=0;i<getChildCount();i++){
+			for (int i = 0; i < getChildCount(); i++) {
 				View child = getChildAt(i);
-				int left = child.getLeft();
-				int right = child.getRight();
-				int top = child.getTop();
-				int bottom = child.getBottom();
-				viewRect.set(left, top, right, bottom);
-				if(viewRect.contains((int)e.getX(), (int)e.getY())){
-					if(mOnItemClicked != null){
-						mOnItemClicked.onItemClick(HorizontalListView.this, child, mLeftViewIndex + 1 + i, mAdapter.getItemId( mLeftViewIndex + 1 + i ));
+				
+				if (isEventWithinView(e, child)) {
+					if (mOnItemClicked != null) {
+						child.setPressed(true);
+						mOnItemClicked.onItemClick(HorizontalListView.this,
+								child, mLeftViewIndex + 1 + i,
+								mAdapter.getItemId(mLeftViewIndex + 1 + i));
 					}
-					if(mOnItemSelected != null){
-						mOnItemSelected.onItemSelected(HorizontalListView.this, child, mLeftViewIndex + 1 + i, mAdapter.getItemId( mLeftViewIndex + 1 + i ));
+					if (mOnItemSelected != null) {
+						int pos = (int) mAdapter.getItemId(mLeftViewIndex + 1
+								+ i);
+						boolean selectthis = false;
+						if (HorizontalListView.this.selection != pos) {
+
+							HorizontalListView.this.setSelection(pos);
+							selectthis = true;
+						} else {
+							mOnItemSelected
+									.onNothingSelected(HorizontalListView.this);
+							HorizontalListView.this.setSelection(-1);
+						}
+
+						if (selectthis) {
+							child.setSelected(true);
+							viewStateRetrive(child, true);
+						} else {
+							child.setSelected(false);
+							viewStateRetrive(child, false);
+						}
+						if (child.isSelected()) {
+							mOnItemSelected.onItemSelected(
+									HorizontalListView.this, child,
+									mLeftViewIndex + 1 + i,
+									mAdapter.getItemId(mLeftViewIndex + 1 + i));
+						} else {
+							// HorizontalListView.this.setSelection(-1);
+						}
+
+					}
+					// break;
+				} else {
+					child.setPressed(false);
+					child.setSelected(false);
+					viewStateRetrive(child, false);
+
+					child.postInvalidate();
+				}// end else
+
+			}
+			return super.onSingleTapConfirmed(e);
+
+		}
+
+		@Override
+		public void onLongPress(MotionEvent e) {
+			int childCount = getChildCount();
+			for (int i = 0; i < childCount; i++) {
+				View child = getChildAt(i);
+				if (isEventWithinView(e, child)) {
+					if (mOnItemLongClicked != null) {
+						mOnItemLongClicked.onItemLongClick(
+								HorizontalListView.this, child, mLeftViewIndex
+										+ 1 + i,
+								mAdapter.getItemId(mLeftViewIndex + 1 + i));
 					}
 					break;
 				}
 
 			}
-			return true;
 		}
 
-
-
-	};
-	private View childSelected;
-
-
-	public boolean onTestMove(MotionEvent event) {
-
-		float xInit = event.getHistoricalX(0);
-		float yInit = event.getHistoricalY(0);
-
-		float xNow = event.getX();
-		float yNow = event.getY();
-
-
-		
-		Rect viewRect = new Rect();
-		if(!isMove){
-		for(int i=0;i<getChildCount();i++){
-			View child = getChildAt(i);
-			int left = child.getLeft();
-			int right = child.getRight();
-			int top = child.getTop();
-			int bottom = child.getBottom();
+		private boolean isEventWithinView(MotionEvent e, View child) {
+			Rect viewRect = new Rect();
+			int[] childPosition = new int[2];
+			child.getLocationOnScreen(childPosition);
+			int left = childPosition[0];
+			int right = left + child.getWidth();
+			int top = childPosition[1];
+			int bottom = top + child.getHeight();
 			viewRect.set(left, top, right, bottom);
-			if(viewRect.contains((int)xInit, (int)yInit)){
-					if(yNow > yInit ){
-
-						Log.d("relache", "passé in ");
-						if(mOnItemMoveListener != null){
-							mOnItemMoveListener.onTouch(child, event);
-							this.childSelected = child;
-						}
-						
-						if(mOnItemClicked != null){
-							mOnItemClicked.onItemClick(HorizontalListView.this, child, mLeftViewIndex + 1 + i, mAdapter.getItemId( mLeftViewIndex + 1 + i ));
-						}
-
-						isMove = true;
-						return true;
-
-					}
-				}
-
-			}
-		}else{
-			mOnItemMoveListener.onTouch(childSelected, event);
-			
-			if(event.getAction() == MotionEvent.ACTION_UP){
-				int left = this.getLeft();
-				int right = this.getRight();
-				int top = this.getTop();
-				int bottom = this.getBottom();
-				Rect rect = new Rect(left, top, right, bottom);
-				
-					if(!rect.contains((int)xNow, (int)yNow)){
-						
-						if(mOnItemOutListener != null){
-							mOnItemOutListener.onTouch(this.childSelected, event);
-						}
-					}
-				
-				isMove = false;
-				return false;
-			}
-			
-			return true;
+			return viewRect.contains((int) e.getRawX(), (int) e.getRawY());
 		}
-		
-		return false;
-	}
-	
-	public boolean onTestReceive(MotionEvent e) {
-			
-			if(e.getAction() == MotionEvent.ACTION_UP){
-				Rect viewRect = new Rect();
-				for(int i=0;i<getChildCount();i++){
-					View child = getChildAt(i);
-					int left = child.getLeft();
-					int right = child.getRight();
-					int top = child.getTop() + this.getTop();
-					int bottom = child.getBottom() + this.getBottom();
-					int x = (int)e.getX();
-					int y = (int)e.getY();
-					viewRect.set(left, top, right, bottom);
-					if(viewRect.contains(x,y)){
-						if(mOnItemClicked != null){
-							mOnItemClicked.onItemClick(HorizontalListView.this, child, mLeftViewIndex + 1 + i, mAdapter.getItemId( mLeftViewIndex + 1 + i ));
-						}
-						if(mOnItemSelected != null){
-							mOnItemSelected.onItemSelected(HorizontalListView.this, child, mLeftViewIndex + 1 + i, mAdapter.getItemId( mLeftViewIndex + 1 + i ));
-						}
-						break;
-					}
+	};
 
-				}
-				return true;
-			}
-			return false;
-	}
-
-
-	public void setOnMove(Boolean onMoveListener){
-		this.onMove = true;
-	}
 }
